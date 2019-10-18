@@ -2,6 +2,10 @@ package com.app;
 
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
@@ -10,7 +14,10 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageConverter;
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestTemplate;
@@ -25,8 +32,8 @@ public class EWSEventApp implements CommandLineRunner {
 	
 	@Autowired
 	EventRepository eventRepo;
-	@Value("${host}")
-	private String APIHost;
+	@Value("${API}")
+	private String API;
 
 	public static void main(String[] args) throws Exception {
 		SpringApplication.run(EWSEventApp.class, args);
@@ -46,9 +53,18 @@ public class EWSEventApp implements CommandLineRunner {
 		}
 
 		RestTemplate restTemplate = new RestTemplate();
-		String url = APIHost + "/EW-Shopp/EW-Shopp_Event_API/2.2.0/event/" + date + "P" + N;
+		String url = API + date;
+		if(N!=0)
+			url	+= "P" + N;
 
 		try {
+			// to support responses not only in application/json content type
+			List<HttpMessageConverter<?>> messageConverters = new ArrayList<HttpMessageConverter<?>>();        
+			MappingJackson2HttpMessageConverter converter = new MappingJackson2HttpMessageConverter();
+			converter.setSupportedMediaTypes(Collections.singletonList(MediaType.ALL));        
+			messageConverters.add(converter);  
+			restTemplate.setMessageConverters(messageConverters); 
+			
 			ResponseEntity<EventsArray> response = restTemplate.exchange(url, HttpMethod.GET, null, new ParameterizedTypeReference<EventsArray>(){});
 			EventsArray events = response.getBody();
 			for(Event event : events.getEventArray()) 
